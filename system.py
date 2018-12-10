@@ -11,6 +11,7 @@ version: v1.0
 """
 import numpy as np
 import utils.utils as utils
+import scipy.linalg
 
 
 def get_bounding_box_size(images):
@@ -60,12 +61,68 @@ def reduce_dimensions(feature_vectors_full, model):
        training stage
     """
     
+    print("shape of o.g. fvf:", feature_vectors_full.shape) # (14395,2340) - 2340 pixel features 
+    
+    # PCA to 40 dimensions
+    covx = np.cov(feature_vectors_full, rowvar=0)
+    N = covx.shape[0]
+    print("N =", N)
+    w, v = scipy.linalg.eigh(covx, eigvals=(N - 40, N - 1)) # first 40 principal components
+    v = np.fliplr(v)
+
+    covx.shape # (2340, 2340)
+    print("covx.shape:", covx.shape)
+    v.shape # (2340,40)
+    print("v.shape", v.shape)
+    print("w.shape", w.shape)
+    
+    pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,40) - prospective 40 features
+    print("pcatrain_data:", pcatrain_data.shape)
+    
+    """PERFORM MULTI-DIVERGENCE to get 10 best features"""
+    
+    # how to reconstruct the data
+    reconstructed = np.dot(pcatrain_data, v.transpose()) + np.mean(feature_vectors_full)
+    print("reconstructed type:", reconstructed.shape)
     # maybe access feature selection already 
     
-    print(feature_vectors_full[:,0:10])
-    print("number of vectors", (feature_vectors_full[:,0:10]).shape)
+    #print(feature_vectors_full[:,0:10])
+    #print("feature_vectors_full shape:", (feature_vectors_full[:,0:10]).shape)
     
     return feature_vectors_full[:, 0:10]
+
+
+def multidivergence(class1, class2, features):
+    """compute divergence between class1 and class2
+    
+    class1 - data matrix for class 1, each row is a sample
+    class2 - data matrix for class 2
+    features - the subset of features to use
+    
+    returns: d12 - a scalar divergence score
+    """
+
+    ndim = len(features);
+
+    # compute mean vectors
+    mu1 = np.mean(class1[:, features], axis=0)
+    mu2 = np.mean(class2[:, features], axis=0)
+
+    # compute distance between means
+    dmu = mu1 - mu2
+
+    # compute covariance and inverse covariance matrices
+    cov1 = np.cov(class1[:, features], rowvar=0)
+    cov2 = np.cov(class2[:, features], rowvar=0)
+ 
+    icov1 = np.linalg.inv(cov1)
+    icov2 = np.linalg.inv(cov2)
+
+    # plug everything into the formula for multivariate gaussian divergence
+    d12 = (0.5 * np.trace(np.dot(icov1, cov2) + np.dot(icov2, cov1) 
+                          - 2 * np.eye(ndim)) + 0.5 * np.dot(np.dot(dmu, icov1 + icov2), dmu))
+
+    return d12
 
 # The three functions below this point are called by train.py
 # and evaluate.py and need to be provided.
