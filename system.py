@@ -61,10 +61,10 @@ def reduce_dimensions(feature_vectors_full, model):
        training stage
     """
     print("shape of o.g. fvf:", feature_vectors_full.shape) # (14395,2340) - 2340 pixel features 
-    reduced_noise_vector = PCA_reduce_noise(feature_vectors_full, model)
-    print("reduced_noise_vector", reduced_noise_vector.shape)
+    #reduced_noise_vector = PCA_reduce_noise(feature_vectors_full, model)
+    #print("reduced_noise_vector", reduced_noise_vector.shape)
     
-    ten_feature_vector = PCA_ten_features(reduced_noise_vector, model) #(14395,10)
+    ten_feature_vector = PCA_ten_features(feature_vectors_full, model) #(14395,10)
     print("ten_feature_vector", ten_feature_vector.shape)
     return ten_feature_vector
 
@@ -73,15 +73,15 @@ def PCA_reduce_noise(feature_vectors_full, model):
     # PCA to 40 dimensions
     covx = np.cov(feature_vectors_full, rowvar=0)
     N = covx.shape[0]
-    w, v = scipy.linalg.eigh(covx, eigvals=(N - 40, N - 1)) # first 10 principal components
+    w, v = scipy.linalg.eigh(covx, eigvals=(N - 200, N - 1)) # first 10 principal components
     v = np.fliplr(v)
 
     covx.shape # (2340, 2340)
-    print("covx.shape:", covx.shape)
+    #print("covx.shape:", covx.shape)
     v.shape # (2340,40)
-    print("v.shape", v.shape)
+    #print("v.shape", v.shape)
     
-    pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,40) - prospective 40 features
+    pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,80) - prospective 40 features
     print("pcatrain_data:", pcatrain_data.shape)
     
     # Maybe future attempt to refine
@@ -95,12 +95,12 @@ def PCA_ten_features(reconstructed_feature_vector,model):
     # PCA to 10 dimensions
     covx = np.cov(reconstructed_feature_vector, rowvar=0)
     N = covx.shape[0]
-    print("N =", N)
+    #print("N =", N)
     w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1)) # first 10 principal components
     v = np.fliplr(v)
 
     covx.shape # (2340, 2340)
-    print("covx.shape:", covx.shape)
+    #print("covx.shape:", covx.shape)
     
     pcatrain_data = np.dot((reconstructed_feature_vector - np.mean(reconstructed_feature_vector)), v) # (14395,10) - prospective 40 features
     return pcatrain_data
@@ -149,7 +149,7 @@ def classify_page(page, model):
     """
     fvectors_train = np.array(model['fvectors_train'])
     labels_train = np.array(model['labels_train'])
-    print("+++ length of labels_train:", len(labels_train))
+    #print("+++ length of labels_train:", len(labels_train))
     
     fvectors_test = np.array(page)
     print("SHAPE OF FVECTOR_TEST:", fvectors_test.shape)
@@ -165,9 +165,9 @@ def classify_page(page, model):
     label = labels_train[nearest]
     
     # confused whether we constructed a new labels_test
-    
-    print("********", np.repeat(labels_train[0], len(page)))
-    print("shape of output:", np.repeat(labels_train[0], len(page)).shape)
+    print("label nparray:", label)
+    #print("********", np.repeat(labels_train[0], len(page)))
+    #print("shape of output:", np.repeat(labels_train[0], len(page)).shape)
     return label
 
 
