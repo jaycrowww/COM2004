@@ -60,69 +60,51 @@ def reduce_dimensions(feature_vectors_full, model):
     model - a dictionary storing the outputs of the model
        training stage
     """
-    
     print("shape of o.g. fvf:", feature_vectors_full.shape) # (14395,2340) - 2340 pixel features 
+    reduced_noise_vector = PCA_reduce_noise(feature_vectors_full, model)
+    print("reduced_noise_vector", reduced_noise_vector.shape)
+    
+    ten_feature_vector = PCA_ten_features(reduced_noise_vector, model) #(14395,10)
+    print("ten_feature_vector", ten_feature_vector.shape)
+    return ten_feature_vector
+
+def PCA_reduce_noise(feature_vectors_full, model):
     
     # PCA to 40 dimensions
     covx = np.cov(feature_vectors_full, rowvar=0)
     N = covx.shape[0]
-    print("N =", N)
-    w, v = scipy.linalg.eigh(covx, eigvals=(N - 40, N - 1)) # first 40 principal components
+    w, v = scipy.linalg.eigh(covx, eigvals=(N - 40, N - 1)) # first 10 principal components
     v = np.fliplr(v)
 
     covx.shape # (2340, 2340)
     print("covx.shape:", covx.shape)
     v.shape # (2340,40)
     print("v.shape", v.shape)
-    print("w.shape", w.shape)
     
     pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,40) - prospective 40 features
     print("pcatrain_data:", pcatrain_data.shape)
     
-    """PERFORM MULTI-DIVERGENCE to get 10 best features"""
+    # Maybe future attempt to refine
+    """!!!! ---later: PERFORM MULTI-DIVERGENCE to get 10 best features"""
     
-    # how to reconstruct the data
+    # how to reconstruct the data - to reduce noise
     reconstructed = np.dot(pcatrain_data, v.transpose()) + np.mean(feature_vectors_full)
-    print("reconstructed type:", reconstructed.shape)
-    # maybe access feature selection already 
+    return reconstructed
+
+def PCA_ten_features(reconstructed_feature_vector,model):
+    # PCA to 10 dimensions
+    covx = np.cov(reconstructed_feature_vector, rowvar=0)
+    N = covx.shape[0]
+    print("N =", N)
+    w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1)) # first 10 principal components
+    v = np.fliplr(v)
+
+    covx.shape # (2340, 2340)
+    print("covx.shape:", covx.shape)
     
-    #print(feature_vectors_full[:,0:10])
-    #print("feature_vectors_full shape:", (feature_vectors_full[:,0:10]).shape)
-    
-    return feature_vectors_full[:, 0:10]
+    pcatrain_data = np.dot((reconstructed_feature_vector - np.mean(reconstructed_feature_vector)), v) # (14395,10) - prospective 40 features
+    return pcatrain_data
 
-
-def multidivergence(class1, class2, features):
-    """compute divergence between class1 and class2
-    
-    class1 - data matrix for class 1, each row is a sample
-    class2 - data matrix for class 2
-    features - the subset of features to use
-    
-    returns: d12 - a scalar divergence score
-    """
-
-    ndim = len(features);
-
-    # compute mean vectors
-    mu1 = np.mean(class1[:, features], axis=0)
-    mu2 = np.mean(class2[:, features], axis=0)
-
-    # compute distance between means
-    dmu = mu1 - mu2
-
-    # compute covariance and inverse covariance matrices
-    cov1 = np.cov(class1[:, features], rowvar=0)
-    cov2 = np.cov(class2[:, features], rowvar=0)
- 
-    icov1 = np.linalg.inv(cov1)
-    icov2 = np.linalg.inv(cov2)
-
-    # plug everything into the formula for multivariate gaussian divergence
-    d12 = (0.5 * np.trace(np.dot(icov1, cov2) + np.dot(icov2, cov1) 
-                          - 2 * np.eye(ndim)) + 0.5 * np.dot(np.dot(dmu, icov1 + icov2), dmu))
-
-    return d12
 
 # The three functions below this point are called by train.py
 # and evaluate.py and need to be provided.
@@ -152,15 +134,11 @@ def process_training_data(train_page_names):
     print('Reducing to 10 dimensions')
     fvectors_train = reduce_dimensions(fvectors_train_full, model_data)
     
-
     model_data['fvectors_train'] = fvectors_train.tolist()
-    
-    
-    print('Feature Selection Stage')
     
     return model_data
 
-
+    
 def classify_page(page, model):
     """Dummy classifier. Always returns first label.
 
@@ -171,7 +149,26 @@ def classify_page(page, model):
     """
     fvectors_train = np.array(model['fvectors_train'])
     labels_train = np.array(model['labels_train'])
-    return np.repeat(labels_train[0], len(page))
+    print("+++ length of labels_train:", len(labels_train))
+    
+    fvectors_test = np.array(page)
+    print("SHAPE OF FVECTOR_TEST:", fvectors_test.shape)
+    
+    # Super compact implementation of nearest neighbour 
+    x= np.dot(fvectors_test, fvectors_train.transpose())
+    modtest=np.sqrt(np.sum(fvectors_test * fvectors_test, axis=1))
+    modtrain=np.sqrt(np.sum(fvectors_train * fvectors_train, axis=1))
+    dist = x / np.outer(modtest, modtrain.transpose()) # cosine distance
+    nearest=np.argmax(dist, axis=1)
+    print("Nearest:", nearest, "shape of nearest", nearest.shape, "length of nearest:", len(nearest))
+    mdist=np.max(dist, axis=1)
+    label = labels_train[nearest]
+    
+    # confused whether we constructed a new labels_test
+    
+    print("********", np.repeat(labels_train[0], len(page)))
+    print("shape of output:", np.repeat(labels_train[0], len(page)).shape)
+    return label
 
 
 def load_test_page(page_name, model):
