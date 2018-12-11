@@ -61,39 +61,18 @@ def reduce_dimensions(feature_vectors_full, model):
     model - a dictionary storing the outputs of the model
        training stage
     """
-    
-    noise_dim = 50
-    n = 10
+    noise_dim = model['noise_dim']
+    dim = model['dim'] 
     
     # Performs PCA to reduce to ___ dimensions for input feature vector, 
     # and reconstructs feature vector to reduce noise
-    reconstructed_vector = PCA_reduce_noise(feature_vectors_full, model, noise_dim)
-
-    # Performs PCA to reduce to n-Dimensions
-    reduced_feature_vector = PCA_ten_features(reconstructed_vector, model, n)
+    reconstructed_feature_vector = doPCA(feature_vectors_full, model, noise_dim)
+    
+    reduced_feature_vector = doPCA(reconstructed_feature_vector, model, dim)
     
     return reduced_feature_vector
 
-def PCA_reduce_noise(feature_vectors_full, model, noise_dim):
-    """ Original Code taken from 'Lab 7' includes code from sections:
-            4. Computing the Principal Components
-            5. Projecting the data onto the principal component axes
-            
-            Alterations made by Jenny Croft.
-    """
-    
-    covx = np.cov(feature_vectors_full, rowvar=0)
-    N = covx.shape[0]
-    w, v = scipy.linalg.eigh(covx, eigvals=(N - n, N - 1)) # first 40 principal components
-    v = np.fliplr(v)
-    pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,80) - prospective 40 features
-
-    
-    # how to reconstruct the data - to reduce noise
-    reconstructed = np.dot(pcatrain_data, v.transpose()) + np.mean(feature_vectors_full)
-    return reconstructed
-
-def PCA_ten_features(feature_vector, model, n):
+def doPCA(feature_vector, model, d):
     """ Reducing dimensions of feature vector to 10 dimensions using PCA.
     And processes and store the eigenvectorvalues to 
     
@@ -105,6 +84,8 @@ def PCA_ten_features(feature_vector, model, n):
         Alterations made by Jenny Croft.
     
     """
+    noise_dim = model['noise_dim']
+    dim = model['dim'] 
     
     v = np.array(model['eigenvector'])
     
@@ -115,16 +96,16 @@ def PCA_ten_features(feature_vector, model, n):
         #print("N =", N)
         w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1)) # first 10 principal components
         v = np.fliplr(v)
-        model['eigenvector'] = v.tolist()
+        # only save eigenvector for final reduction of post-noise reduction PCA 
+        if d == dim:
+            model['eigenvector'] = v.tolist()
     # v must be an np.array here
-    pca_processed_data = np.dot((feature_vector - np.mean(feature_vector)), v) # (14395,10) 
-    
-    #but V must be saved as a 
+    pca_processed_data = np.dot((feature_vector - np.mean(feature_vector)), v) 
+    if d == noise_dim:
+        return np.dot(pca_processed_data, v.transpose()) + np.mean(feature_vector)
+
     return pca_processed_data
 
-
-# The three functions below this point are called by train.py
-# and evaluate.py and need to be provided.
 
 def process_training_data(train_page_names):
     """Perform the training stage and return results in a dictionary.
@@ -148,6 +129,10 @@ def process_training_data(train_page_names):
     model_data['labels_train'] = labels_train.tolist()
     model_data['bbox_size'] = bbox_size # standardised box size of largest possible bounding box
     model_data['eigenvector'] = np.array([]).tolist() # initialise empty array
+    
+    # For PCA Dimension Reduction
+    model_data['noise_dim'] = 50
+    model_data['dim'] = 10
     
     #print(bbox_size)
     #print(model_data['bbox_size'])
