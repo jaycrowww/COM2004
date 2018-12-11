@@ -60,15 +60,14 @@ def reduce_dimensions(feature_vectors_full, model):
     model - a dictionary storing the outputs of the model
        training stage
     """
-    #print("shape of o.g. fvf:", feature_vectors_full.shape) # (14395,2340) - 2340 pixel features 
-    #reduced_noise_vector = PCA_reduce_noise(feature_vectors_full, model)
+    reduced_noise_vector = PCA_reduce_noise(feature_vectors_full, model)
     #print("reduced_noise_vector", reduced_noise_vector.shape)
 
-    ten_feature_vector = PCA_ten_features(feature_vectors_full, model) #(14395,10)
+    ten_feature_vector = PCA_ten_features(reduced_noise_vector, model) #(14395,10)
     #print("ten_feature_vector", ten_feature_vector.shape)
     return ten_feature_vector
 
-"""def PCA_reduce_noise(feature_vectors_full, model):
+def PCA_reduce_noise(feature_vectors_full, model):
     
     # PCA to 40 dimensions
     covx = np.cov(feature_vectors_full, rowvar=0)
@@ -82,7 +81,7 @@ def reduce_dimensions(feature_vectors_full, model):
     #print("v.shape", v.shape)
     
     pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,80) - prospective 40 features
-    print("pcatrain_data:", pcatrain_data.shape)
+    #print("pcatrain_data:", pcatrain_data.shape)
     
     # Maybe future attempt to refine
     
@@ -90,7 +89,7 @@ def reduce_dimensions(feature_vectors_full, model):
     
     # how to reconstruct the data - to reduce noise
     reconstructed = np.dot(pcatrain_data, v.transpose()) + np.mean(feature_vectors_full)
-    return reconstructed"""
+    return reconstructed
 
 def PCA_ten_features(feature_vector, model):
     # PCA to 10 dimensions
@@ -142,10 +141,7 @@ def process_training_data(train_page_names):
     #print(model_data['bbox_size'])
 
     print('Reducing to 10 dimensions')
-    fvectors_train = reduce_dimensions(fvectors_train_full, model_data)
-    
-    print("EIGENVECTOR:""type:", type(model_data['eigenvector']))
-    
+    fvectors_train = reduce_dimensions(fvectors_train_full, model_data)   
     model_data['fvectors_train'] = fvectors_train.tolist()
     
     return model_data
@@ -192,7 +188,7 @@ def load_test_page(page_name, model):
     
     # Perform the dimensionality reduction.
     fvectors_test_reduced = reduce_dimensions(fvectors_test, model)
-    print("###type of test reduced:", type(fvectors_test_reduced))
+    #print("###type of test reduced:", type(fvectors_test_reduced))
     return fvectors_test_reduced # np.ndarray
 
 
