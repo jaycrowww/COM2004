@@ -58,9 +58,12 @@ def evaluate(testset):
     true_labels = [utils.load_labels(page_name)
                    for page_name in page_names]
 
-    # Load the 10-dimensional feature data for each test page
+    # Load the 10-dimensional feature data for each test page - using PCA
     page_data_all_pages = [system.load_test_page(page_name, model)
                            for page_name in page_names]
+    # list of np.ndarray
+    #print("what is page_data_all_pages:", page_data_all_pages)
+    #print("\n type of page_data_all_pages:", type(page_data_all_pages)) # list
 
     # Check that load_test_page is returning 10-dimensional data
     if not validate_test_data(page_data_all_pages):
