@@ -1,14 +1,10 @@
-"""Dummy classification system.
+"""Classification System
 
-Skeleton code for a assignment solution.
-
-To make a working solution you will need to rewrite parts
-of the code below. In particular, the functions
-reduce_dimensions and classify_page currently have
-dummy implementations that do not do anything useful.
+Altered to Skeleton code provided for assignment.
 
 version: v1.0
 """
+
 import numpy as np
 import utils.utils as utils
 import scipy.linalg
@@ -49,51 +45,67 @@ def images_to_feature_vectors(images, bbox_size=None):
         w = min(w, bbox_w) # chooses between two numbers
         padded_image[0:h, 0:w] = image[0:h, 0:w]
         fvectors[i, :] = padded_image.reshape(1, nfeatures) # reshapes to be 1D array of nfeatures length/width from top left corner
-        #print("len of:", len(fvectors[i,:]))
+        
     return fvectors
 
 
 def reduce_dimensions(feature_vectors_full, model):
-    """ Params:
+    """ Reduces dimensions of feature vectors to 10 dimensions.
+    
+    Takes a list 
+    
+
+    Params:
     feature_vectors_full - feature vectors stored as rows
        in a matrix
     model - a dictionary storing the outputs of the model
        training stage
     """
-    reduced_noise_vector = PCA_reduce_noise(feature_vectors_full, model)
-    #print("reduced_noise_vector", reduced_noise_vector.shape)
-
-    ten_feature_vector = PCA_ten_features(reduced_noise_vector, model) #(14395,10)
-    #print("ten_feature_vector", ten_feature_vector.shape)
-    return ten_feature_vector
-
-def PCA_reduce_noise(feature_vectors_full, model):
     
-    # PCA to 40 dimensions
+    noise_dim = 50
+    n = 10
+    
+    # Performs PCA to reduce to ___ dimensions for input feature vector, 
+    # and reconstructs feature vector to reduce noise
+    reconstructed_vector = PCA_reduce_noise(feature_vectors_full, model, noise_dim)
+
+    # Performs PCA to reduce to n-Dimensions
+    reduced_feature_vector = PCA_ten_features(reconstructed_vector, model, n)
+    
+    return reduced_feature_vector
+
+def PCA_reduce_noise(feature_vectors_full, model, noise_dim):
+    """ Original Code taken from 'Lab 7' includes code from sections:
+            4. Computing the Principal Components
+            5. Projecting the data onto the principal component axes
+            
+            Alterations made by Jenny Croft.
+    """
+    
     covx = np.cov(feature_vectors_full, rowvar=0)
     N = covx.shape[0]
-    w, v = scipy.linalg.eigh(covx, eigvals=(N - 40, N - 1)) # first 40 principal components
+    w, v = scipy.linalg.eigh(covx, eigvals=(N - n, N - 1)) # first 40 principal components
     v = np.fliplr(v)
-
-    covx.shape # (2340, 2340)
-    #print("covx.shape:", covx.shape)
-    v.shape # (2340,40)
-    #print("v.shape", v.shape)
-    
     pcatrain_data = np.dot((feature_vectors_full - np.mean(feature_vectors_full)), v) # (14395,80) - prospective 40 features
-    #print("pcatrain_data:", pcatrain_data.shape)
-    
-    # Maybe future attempt to refine
-    
-    #!!!! ---later: PERFORM MULTI-DIVERGENCE to get 10 best features
+
     
     # how to reconstruct the data - to reduce noise
     reconstructed = np.dot(pcatrain_data, v.transpose()) + np.mean(feature_vectors_full)
     return reconstructed
 
-def PCA_ten_features(feature_vector, model):
-    # PCA to 10 dimensions
-    #empty_eigenvalues = np.array()
+def PCA_ten_features(feature_vector, model, n):
+    """ Reducing dimensions of feature vector to 10 dimensions using PCA.
+    And processes and store the eigenvectorvalues to 
+    
+    
+    Original Code taken from 'Lab 7' includes code from sections:
+        4. Computing the Principal Components
+        5. Projecting the data onto the principal component axes
+            
+        Alterations made by Jenny Croft.
+    
+    """
+    
     v = np.array(model['eigenvector'])
     
     # checking if training data eigenvalues have been calculated
@@ -103,10 +115,10 @@ def PCA_ten_features(feature_vector, model):
         #print("N =", N)
         w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1)) # first 10 principal components
         v = np.fliplr(v)
-
+        model['eigenvector'] = v.tolist()
     # v must be an np.array here
     pca_processed_data = np.dot((feature_vector - np.mean(feature_vector)), v) # (14395,10) 
-    model['eigenvector'] = v.tolist()
+    
     #but V must be saved as a 
     return pca_processed_data
 
@@ -154,13 +166,23 @@ def classify_page(page, model):
     page - matrix, each row is a feature vector to be classified
     model - dictionary, stores the output of the training stage
     """
+    
     fvectors_train = np.array(model['fvectors_train'])
-    # DEBUG - print("\n\n\n!!contents of fvectors_train:", fvectors_train)
-    #print("------------shape of TRAIN:", fvectors_train.shape)
     labels_train = np.array(model['labels_train'])
-    # DEBUG - print("!!contents of labels_train:", labels_train)
     fvectors_test = np.array(page)
-  
+    
+    # Perform nearest neighbour classification
+    labels = nearest_neighbour(fvectors_train, labels_train, fvectors_test)
+    return labels
+
+def nearest_neighbour(fvectors_train, labels_train, fvectors_test):
+    """ Performs Nearest Neighbour Classification to label test feature vectors
+    
+    Original Code taken from 'Lab 6' includes code from section(s):
+        3. Using the classify function
+            
+        Alterations made by Jenny Croft. """
+        
     # Super compact implementation of nearest neighbour 
     x = np.dot(fvectors_test, fvectors_train.transpose())
     modtest = np.sqrt(np.sum(fvectors_test * fvectors_test, axis=1))
@@ -168,8 +190,7 @@ def classify_page(page, model):
     dist = x / np.outer(modtest, modtrain.transpose()) # cosine distance
     nearest = np.argmax(dist, axis=1)
     
-    label = labels_train[nearest]
-    return label
+    return labels_train[nearest]
 
 def load_test_page(page_name, model):
     """Load test data page.
