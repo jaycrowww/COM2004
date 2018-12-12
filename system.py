@@ -1,14 +1,13 @@
 """ Classification System
-
 Utilising PCA and Nearest Neighbour Classification Approach
-
 Alterations made to Skeleton code done by: Jenny Croft.
-
 """
 
 import numpy as np
 import utils.utils as utils
 import scipy.linalg
+from collections import defaultdict
+import operator
 
 
 def get_bounding_box_size(images):
@@ -20,11 +19,9 @@ def get_bounding_box_size(images):
 
 def images_to_feature_vectors(images, bbox_size=None):
     """Reformat characters into feature vectors.
-
     Takes a list of images stored as 2D-arrays and returns
     a matrix in which each row is a fixed length feature vector
     corresponding to the image.abs
-
     Params:
     images - a list of images stored as arrays
     bbox_size - an optional fixed bounding box size for each image
@@ -125,7 +122,6 @@ def doPCA(feature_vector, model, d):
 
 def process_training_data(train_page_names):
     """Perform the training stage and return results in a dictionary.
-
     Params:
     train_page_names - list of training page names
     """
@@ -167,7 +163,6 @@ def classify_page(page, model):
     and returns the output labels of the classification
     
     parameters:
-
     page - matrix, each row is a feature vector to be classified
     model - dictionary, stores the output of the training stage
     """
@@ -199,10 +194,8 @@ def nearest_neighbour(fvectors_train, labels_train, fvectors_test):
 
 def load_test_page(page_name, model):
     """Load test data page.
-
     This function must return each character as a 10-d feature
     vector with the vectors stored as rows of a matrix.
-
     Params:
     page_name - name of page file
     model - dictionary storing data passed from training stage
@@ -222,11 +215,101 @@ def load_test_page(page_name, model):
 def correct_errors(page, labels, bboxes, model):
     """Dummy error correction. Returns labels unchanged.
     
+    -- no attempt made
+    
     parameters:
-
     page - 2d array, each row is a feature vector to be classified
     labels - the output classification label for each feature vector
     bboxes - 2d array, each row gives the 4 bounding box coords of the character
     model - dictionary, stores the output of the training stage
     """
     return labels
+
+
+# Three Following functions are not called - attempt at K nearest neighbour - 
+# incredibly slow would have benefited from more time implementing np methods
+# to speed up mass arithmetic - though showed positive results
+    
+def classify_page_attempt(page, model):
+    """ Performs nearest neighbour classification on specified page
+    and returns the output labels of the classification
+    
+    parameters:
+
+    page - matrix, each row is a feature vector to be classified
+    model - dictionary, stores the output of the training stage
+    """
+    print("\n\n\n\ncounter = ", model['counter'])
+    model['counter'] += 1
+    fvectors_train = np.array(model['fvectors_train'])
+    labels_train = np.array(model['labels_train'])
+    fvectors_test = np.array(page)
+    
+    labels = np.array(fvectors_test.shape)
+    
+    # Perform nearest neighbour classification
+    k = 3 # test k value
+    for testInstance in fvectors_test:
+        result, neighbours = k_nearest_neighbour(fvectors_train, labels_train,
+                                                 testInstance, k)
+        labels.append(result)
+    return labels
+
+def k_nearest_neighbour(fvectors_train, labels_train, testInstance, k):
+    """ Performs Nearest Neighbour Classification to label test feature vectors
+        
+        Source Code: https://www.analyticsvidhya.com/blog/2018/03/introduction
+        -k-neighbours-algorithm-clustering/    
+    
+        Alterations made by Jenny Croft. """
+        
+    distances = {}   
+        
+    for x, trainingInstance in enumerate(fvectors_train):
+        dist = do_euclidean_distance(testInstance, trainingInstance)
+        #print("****",dist)
+        distances[x] = dist
+        
+    # Sorting them on the basis of distance
+    sorted_d = sorted(distances.items(),key=operator.itemgetter(1))
+
+    neighbours = []
+    # Extracting top k neighbours
+    for i in range(k):
+        neighbours.append(sorted_d[i][0])  
+    classVotes = defaultdict(int)
+    
+    # Calculating the most freq class in the neighbours
+    for j in range(len(neighbours)):
+        response = labels_train[neighbours[j]]
+        classVotes[response] += 1
+        
+        
+    sortedVotes = sorted(classVotes.items(), key=operator.itemgetter(1), 
+                         reverse = True)
+    return(sortedVotes[0][0], neighbours)
+        
+    """# Super compact implementation of nearest neighbour 
+    x = np.dot(fvectors_test, fvectors_train.transpose())
+    modtest = np.sqrt(np.sum(fvectors_test * fvectors_test, axis=1))
+    modtrain = np.sqrt(np.sum(fvectors_train * fvectors_train, axis=1))
+    dist = x / np.outer(modtest, modtrain.transpose()) # cosine distance
+    
+    print("dist:", dist)"""
+    
+    
+    #nearest = np.argmax(dist, axis=1)
+    
+    #eturn labels_train[nearest]
+
+def do_euclidean_distance(x, y):
+    """ Performs Cosine Distance Formula
+    
+    Original Code taken from 'Lab 6' includes code from section(s):
+        3. Using the classify function
+        
+    """
+    # Super compact implementation of nearest neighbour 
+    return np.sqrt(np.sum((x - y) ** 2))
+
+
