@@ -1,8 +1,9 @@
-"""Classification System
+""" Classification System
 
-Altered to Skeleton code provided for assignment.
+Utilising PCA and Nearest Neighbour Classification Approach
 
-version: v1.0
+Alterations made to Skeleton code done by: Jenny Croft.
+
 """
 
 import numpy as np
@@ -52,20 +53,22 @@ def images_to_feature_vectors(images, bbox_size=None):
 def reduce_dimensions(feature_vectors_full, model):
     """ Reduces dimensions of feature vectors to 10 dimensions.
     
-    Takes a list 
+    Takes numpy ndarray of feature vectors and reduces feature vectors to
+    specified number of dimensions ('noise_dim'), and reconstructs approximate
+    feature vector to smooth feature vector and reduce noise.
+    Feature vector is then reduced from reconstructed feature vector
+    to specified 10 dimensions.
     
-
     Params:
     feature_vectors_full - feature vectors stored as rows
        in a matrix
     model - a dictionary storing the outputs of the model
        training stage
     """
+    # Load specified dimension reduction numbers
     noise_dim = model['noise_dim']
     dim = model['dim'] 
     
-    # Performs PCA to reduce to ___ dimensions for input feature vector, 
-    # and reconstructs feature vector to reduce noise
     reconstructed_feature_vector = doPCA(feature_vectors_full, model, noise_dim)
     
     reduced_feature_vector = doPCA(reconstructed_feature_vector, model, dim)
@@ -73,9 +76,15 @@ def reduce_dimensions(feature_vectors_full, model):
     return reduced_feature_vector
 
 def doPCA(feature_vector, model, d):
-    """ Reducing dimensions of feature vector to 10 dimensions using PCA.
-    And processes and store the eigenvectorvalues to 
+    """ Performs PCA to remove noise from feature vector, and to reduce 
+    feature vector by d dimensions, and store eigenvectors of training data.
     
+    Parameters:
+       feature_vectors_full - feature vectors stored as rows
+       in a matrix
+       model - a dictionary storing the outputs of the model
+       training stage
+       d - dimensions to reduce feature vector by
     
     Original Code taken from 'Lab 7' includes code from sections:
         4. Computing the Principal Components
@@ -84,27 +93,34 @@ def doPCA(feature_vector, model, d):
         Alterations made by Jenny Croft.
     
     """
+    # Load specified dimension reduction numbers
     noise_dim = model['noise_dim']
     dim = model['dim'] 
     
+    # Load eigenvectors
     v = np.array(model['eigenvector'])
     
     # checking if training data eigenvalues have been calculated
     if v.size == 0:
         covx = np.cov(feature_vector, rowvar=0)
         N = covx.shape[0]
-        #print("N =", N)
-        w, v = scipy.linalg.eigh(covx, eigvals=(N - 10, N - 1)) # first 10 principal components
+        w, v = scipy.linalg.eigh(covx, eigvals=(N - d, N - 1))
         v = np.fliplr(v)
+        
         # only save eigenvector for final reduction of post-noise reduction PCA 
         if d == dim:
             model['eigenvector'] = v.tolist()
-    # v must be an np.array here
-    pca_processed_data = np.dot((feature_vector - np.mean(feature_vector)), v) 
+            
+    # perform PCA reduction using eigenvector
+    pca_processed_data = np.dot((feature_vector - np.mean(feature_vector)), v)
+    
+    # returns reconstructed feature vector if noise reduction stage
     if d == noise_dim:
         return np.dot(pca_processed_data, v.transpose()) + np.mean(feature_vector)
-
+    
+    # otherwise, returns reduced dimensions feature vector
     return pca_processed_data
+
 
 
 def process_training_data(train_page_names):
@@ -127,15 +143,17 @@ def process_training_data(train_page_names):
 
     model_data = dict()
     model_data['labels_train'] = labels_train.tolist()
-    model_data['bbox_size'] = bbox_size # standardised box size of largest possible bounding box
-    model_data['eigenvector'] = np.array([]).tolist() # initialise empty array
+    model_data['bbox_size'] = bbox_size
+    # initialise empty array to later update with eigenvectors
+    model_data['eigenvector'] = np.array([]).tolist() 
     
     # For PCA Dimension Reduction
-    model_data['noise_dim'] = 50
-    model_data['dim'] = 10
+    noise_dim = 50 # for noise reduction
+    dim = 10 # for final dimension reduction
     
-    #print(bbox_size)
-    #print(model_data['bbox_size'])
+    model_data['noise_dim'] = noise_dim
+    model_data['dim'] = dim
+
 
     print('Reducing to 10 dimensions')
     fvectors_train = reduce_dimensions(fvectors_train_full, model_data)   
@@ -145,7 +163,9 @@ def process_training_data(train_page_names):
 
     
 def classify_page(page, model):
-    """
+    """ Performs nearest neighbour classification on specified page
+    and returns the output labels of the classification
+    
     parameters:
 
     page - matrix, each row is a feature vector to be classified
